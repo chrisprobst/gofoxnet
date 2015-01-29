@@ -42,4 +42,13 @@ func TestDatabase(t *testing.T) {
 	d.addMetaData(md)
 	d.addChunk(c3)
 	d.addChunk(c3)
+
+	buffer, err := d.lookup(h)
+	if err != nil {
+		t.Fatal("Lookup failed:", err)
+	}
+
+	if !bytes.Equal(buffer, []byte("helloworldworks")) {
+		t.Fatal("Inserted and looked up buffer not equal")
+	}
 }

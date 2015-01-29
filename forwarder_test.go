@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"bytes"
 	"encoding/json"
 	"testing"
 )
@@ -16,7 +15,7 @@ func TestForwarder(t *testing.T) {
 	f.addPeer <- peers[2]
 
 	// The buffer for testing
-	packet := forwardingPacket{[]byte("HelloWorldHello"), 99}
+	packet := forwardingPacket{"#hashtag", []byte("HelloWorldHello"), 99}
 
 	// Do the forwarding
 	f.Forward(packet)
@@ -35,11 +34,11 @@ func TestForwarder(t *testing.T) {
 	decoder.Decode(&resultPacket3)
 
 	// Compare buffers
-	if !bytes.Equal(resultPacket1.Buffer, resultPacket2.Buffer) {
-		t.Fatal("Buffer 1 and 2 not equal. ", string(resultPacket1.Buffer), "!=", string(resultPacket2.Buffer))
+	if !resultPacket1.equals(&resultPacket2) {
+		t.Fatal("Packet 1 and 2 not equal:", resultPacket1, "!=", resultPacket2)
 	}
-	if !bytes.Equal(resultPacket2.Buffer, resultPacket3.Buffer) {
-		t.Fatal("Buffer 2 and 3 not equal. ", string(resultPacket2.Buffer), "!=", string(resultPacket3.Buffer))
+	if !resultPacket2.equals(&resultPacket3) {
+		t.Fatal("Packet 2 and 3 not equal:", resultPacket2, "!=", resultPacket3)
 	}
 
 	// Close and wait

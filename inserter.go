@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"log"
@@ -18,6 +19,28 @@ type insertionPacket struct {
 	SplitHashes []string `json:"splitHashes"`
 	Buffer      []byte   `json:"buffer"`
 	BufferIndex int      `json:"bufferIndex"`
+}
+
+func (p *insertionPacket) compatible(o *insertionPacket) bool {
+	if p.Hash != o.Hash {
+		return false
+	}
+
+	if len(p.SplitHashes) != len(o.SplitHashes) {
+		return false
+	}
+
+	for i := 0; i < len(p.SplitHashes); i++ {
+		if p.SplitHashes[i] != o.SplitHashes[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (p *insertionPacket) equals(o *insertionPacket) bool {
+	return p.compatible(o) && p.BufferIndex == o.BufferIndex && bytes.Equal(p.Buffer, o.Buffer)
 }
 
 type insertionResult struct {
@@ -93,11 +116,6 @@ func (p *insertionPeer) processOutput() {
 
 		// We HAVE to answer for this packet
 		p.inserter.addResult(insertionResult{p.id, packet.BufferIndex, err})
-
-		// Any error means stop
-		if err != nil {
-			break
-		}
 	}
 }
 

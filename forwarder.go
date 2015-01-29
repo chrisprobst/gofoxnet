@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"log"
@@ -14,8 +15,17 @@ type forwarding struct {
 }
 
 type forwardingPacket struct {
+	Hash        string `json:"hash"`
 	Buffer      []byte `json:"buffer"`
 	BufferIndex int    `json:"bufferIndex"`
+}
+
+func (p *forwardingPacket) compatible(o *forwardingPacket) bool {
+	return p.Hash == o.Hash
+}
+
+func (p *forwardingPacket) equals(o *forwardingPacket) bool {
+	return p.compatible(o) && p.BufferIndex == o.BufferIndex && bytes.Equal(p.Buffer, o.Buffer)
 }
 
 type forwardingResult struct {
@@ -59,11 +69,6 @@ func (p *forwardingPeer) processOutput() {
 
 		// We HAVE to answer for this packet
 		p.forwarder.addResult(forwardingResult{p.id, err})
-
-		// Any error means stop
-		if err != nil {
-			break
-		}
 	}
 }
 

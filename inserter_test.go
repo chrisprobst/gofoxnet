@@ -23,20 +23,29 @@ func TestInserter(t *testing.T) {
 
 	// Recreate buffer
 	resultBuffer := make([]byte, 15)
-	var packet insertionPacket
+	var packet, packet2 insertionPacket
+
 	decoder := json.NewDecoder(peers[0].buffer)
 	decoder.Decode(&packet)
 	copy(resultBuffer[packet.BufferIndex*5:packet.BufferIndex*5+5], packet.Buffer)
+
 	decoder = json.NewDecoder(peers[1].buffer)
-	decoder.Decode(&packet)
-	copy(resultBuffer[packet.BufferIndex*5:packet.BufferIndex*5+5], packet.Buffer)
+	decoder.Decode(&packet2)
+	if !packet.compatible(&packet2) {
+		t.Fatal("Packet 1 and 2 not compatible:", packet, "!=", packet2)
+	}
+	copy(resultBuffer[packet2.BufferIndex*5:packet2.BufferIndex*5+5], packet2.Buffer)
+
 	decoder = json.NewDecoder(peers[2].buffer)
 	decoder.Decode(&packet)
+	if !packet2.compatible(&packet) {
+		t.Fatal("Packet 2 and 3 not compatible:", packet2, "!=", packet)
+	}
 	copy(resultBuffer[packet.BufferIndex*5:packet.BufferIndex*5+5], packet.Buffer)
 
 	// Compare buffers
 	if !bytes.Equal(buffer, resultBuffer) {
-		t.Fatal("Buffer and result buffer not equal. ", string(buffer), "!=", string(resultBuffer))
+		t.Fatal("Buffer and result buffer not equal:", string(buffer), "!=", string(resultBuffer))
 	}
 
 	// Close and wait

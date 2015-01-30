@@ -2,6 +2,7 @@ package gofoxnet
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"sync"
 )
@@ -47,3 +48,19 @@ func newRWCBuffer() *rwcBuffer {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+
+type dummyWriteCloser struct {
+	io.Reader
+}
+
+func (r *dummyWriteCloser) Write(buffer []byte) (int, error) {
+	return 0, errors.New("Unwritable")
+}
+
+func (r *dummyWriteCloser) Close() error {
+	return nil
+}
+
+func newRWC(r io.Reader) io.ReadWriteCloser {
+	return &dummyWriteCloser{r}
+}

@@ -7,13 +7,6 @@ import (
 	"log"
 )
 
-type insertionPeerId uint64
-
-type insertion struct {
-	buffer []byte
-	ready  signalChan
-}
-
 type insertionPacket struct {
 	Hash        string   `json:"hash"`
 	SplitHashes []string `json:"splitHashes"`
@@ -43,13 +36,24 @@ func (p *insertionPacket) equals(o *insertionPacket) bool {
 	return p.compatible(o) && p.BufferIndex == o.BufferIndex && bytes.Equal(p.Buffer, o.Buffer)
 }
 
+type distributorMetaInfo struct {
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+type insertionPeerId uint64
+
+type insertion struct {
+	buffer []byte
+	ready  signalChan
+}
+
 type insertionResult struct {
 	id          insertionPeerId
 	bufferIndex int
 	err         error
-}
-
-type distributorMetaInfo struct {
 }
 
 type insertionPeerMetaInfo struct {
@@ -72,10 +76,10 @@ type insertionPeer struct {
 	insertionChan chan insertionPacket
 
 	// The inserter, which created us
-	inserter *Inserter
+	inserter *inserter
 }
 
-func newInsertionPeer(rwc io.ReadWriteCloser, id insertionPeerId, inserter *Inserter) *insertionPeer {
+func newInsertionPeer(rwc io.ReadWriteCloser, id insertionPeerId, inserter *inserter) *insertionPeer {
 	p := &insertionPeer{rwc, id, make(chan insertionPacket), inserter}
 	go p.processOutput()
 	go p.processInput()
@@ -123,7 +127,7 @@ func (p *insertionPeer) processOutput() {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-type Inserter struct {
+type inserter struct {
 	// Used to create ids
 	nextPeerId insertionPeerId
 
@@ -131,7 +135,7 @@ type Inserter struct {
 	peers map[insertionPeerId]*insertionPeer
 
 	// New peers are inserted with this channel
-	addPeer chan io.ReadWriteCloser
+	addPeerChan chan io.ReadWriteCloser
 
 	// Kill requests are coming in on this channel
 	killChan chan insertionPeerId
@@ -152,7 +156,23 @@ type Inserter struct {
 	closed signalChan
 }
 
-func (i *Inserter) removeAndClosePeer(id insertionPeerId) {
+func newInserter() *inserter {
+	i := &inserter{
+		0,
+		make(map[insertionPeerId]*insertionPeer),
+		make(chan io.ReadWriteCloser),
+		make(chan insertionPeerId),
+		make(chan insertionPeerMetaInfo),
+		make(chan insertion),
+		make(chan insertionResult),
+		make(signalChan),
+		make(signalChan),
+	}
+	go i.serve()
+	return i
+}
+
+func (i *inserter) removeAndClosePeer(id insertionPeerId) {
 	if p, ok := i.peers[id]; ok {
 		delete(i.peers, id)
 		close(p.insertionChan)
@@ -160,12 +180,12 @@ func (i *Inserter) removeAndClosePeer(id insertionPeerId) {
 	}
 }
 
-func (i *Inserter) createPeer(rwc io.ReadWriteCloser) {
+func (i *inserter) createPeer(rwc io.ReadWriteCloser) {
 	i.peers[i.nextPeerId] = newInsertionPeer(rwc, i.nextPeerId, i)
 	i.nextPeerId++
 }
 
-func (i *Inserter) updateMetaInfo(metaInfo insertionPeerMetaInfo) {
+func (i *inserter) updateMetaInfo(metaInfo insertionPeerMetaInfo) {
 	select {
 	case i.metaInfoChan <- metaInfo:
 	case <-i.done:
@@ -173,7 +193,7 @@ func (i *Inserter) updateMetaInfo(metaInfo insertionPeerMetaInfo) {
 	}
 }
 
-func (i *Inserter) addResult(result insertionResult) {
+func (i *inserter) addResult(result insertionResult) {
 	select {
 	case i.resultChan <- result:
 	case <-i.done:
@@ -181,7 +201,15 @@ func (i *Inserter) addResult(result insertionResult) {
 	}
 }
 
-func (i *Inserter) kill(id insertionPeerId) {
+func (i *inserter) addPeer(wrc io.ReadWriteCloser) {
+	select {
+	case i.addPeerChan <- wrc:
+	case <-i.done:
+		break
+	}
+}
+
+func (i *inserter) kill(id insertionPeerId) {
 	select {
 	case i.killChan <- id:
 	case <-i.done:
@@ -189,7 +217,7 @@ func (i *Inserter) kill(id insertionPeerId) {
 	}
 }
 
-func (i *Inserter) processInsert(ins insertion) {
+func (i *inserter) processInsert(ins insertion) {
 	// Close ready channel
 	defer close(ins.ready)
 
@@ -244,11 +272,13 @@ func (i *Inserter) processInsert(ins insertion) {
 	}
 }
 
-func (i *Inserter) serve() {
+func (i *inserter) serve() {
+	defer close(i.closed)
+
 	// Select for adding, killing and inserting
 	for running := true; running; {
 		select {
-		case rwc := <-i.addPeer:
+		case rwc := <-i.addPeerChan:
 			i.createPeer(rwc)
 		case id := <-i.killChan:
 			i.removeAndClosePeer(id)
@@ -266,31 +296,9 @@ func (i *Inserter) serve() {
 	for id := range i.peers {
 		i.removeAndClosePeer(id)
 	}
-
-	close(i.closed)
 }
 
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
-func NewInserter() *Inserter {
-	i := &Inserter{
-		0,
-		make(map[insertionPeerId]*insertionPeer),
-		make(chan io.ReadWriteCloser),
-		make(chan insertionPeerId),
-		make(chan insertionPeerMetaInfo),
-		make(chan insertion),
-		make(chan insertionResult),
-		make(signalChan),
-		make(signalChan),
-	}
-	go i.serve()
-	return i
-}
-
-func (i *Inserter) Insert(buffer []byte) {
+func (i *inserter) insert(buffer []byte) {
 	ins := insertion{buffer, make(signalChan)}
 
 	select {
@@ -305,13 +313,17 @@ func (i *Inserter) Insert(buffer []byte) {
 	}
 }
 
-func (i *Inserter) Close() error {
+func (i *inserter) close() error {
 	close(i.done)
 	return nil
 }
 
-func (i *Inserter) CloseAndWait() error {
-	err := i.Close()
+func (i *inserter) closeAndWait() error {
+	err := i.close()
 	<-i.closed
 	return err
 }
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////

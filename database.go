@@ -89,6 +89,7 @@ type database struct {
 	addMetaDataChan chan metadata
 	lookupChan      chan lookup
 	done            signalChan
+	closed          signalChan
 
 	// Structures for storing chunks and datasets
 	chunks   map[string]map[int]chunk
@@ -120,26 +121,30 @@ func (d *database) mergeAndNotify(ds *dataset) {
 	}
 }
 
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
 func newDatabase() *database {
 	d := &database{
 		make(chan chunk),
 		make(chan metadata),
 		make(chan lookup),
 		make(signalChan),
+		make(signalChan),
 		make(map[string]map[int]chunk),
 		make(map[string]*dataset),
 		make(map[string][]lookup),
 	}
-	go d.run()
+	go d.serve()
 	return d
 }
 
-func (d *database) stop() {
+func (d *database) close() error {
 	close(d.done)
+	return nil
+}
+
+func (d *database) closeAndWait() error {
+	err := d.close()
+	<-d.closed
+	return err
 }
 
 func (d *database) addChunk(c chunk) {
@@ -175,8 +180,9 @@ func (d *database) lookup(hash string) ([]byte, error) {
 	}
 }
 
-func (d *database) run() {
-	for {
+func (d *database) serve() {
+	defer close(d.closed)
+	for running := true; running; {
 		select {
 		case c := <-d.addChunkChan:
 			if ds, ok := d.datasets[c.hash]; ok {
@@ -220,7 +226,8 @@ func (d *database) run() {
 				d.lookups[l.hash] = append(d.lookups[l.hash], l)
 			}
 		case <-d.done:
-			break
+			running = false
+			continue
 		}
 	}
 }

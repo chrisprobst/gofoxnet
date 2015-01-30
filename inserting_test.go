@@ -7,19 +7,19 @@ import (
 )
 
 func TestInserter(t *testing.T) {
-	i := NewInserter()
+	i := newInserter()
 
 	// Insert all peers
 	peers := []*rwcBuffer{newRWCBuffer(), newRWCBuffer(), newRWCBuffer()}
-	i.addPeer <- peers[0]
-	i.addPeer <- peers[1]
-	i.addPeer <- peers[2]
+	i.addPeer(peers[0])
+	i.addPeer(peers[1])
+	i.addPeer(peers[2])
 
 	// The buffer for testing
 	buffer := []byte("HelloWorldHello")
 
 	// Do the insertion
-	i.Insert(buffer)
+	i.insert(buffer)
 
 	// Recreate buffer
 	resultBuffer := make([]byte, 15)
@@ -49,7 +49,7 @@ func TestInserter(t *testing.T) {
 	}
 
 	// Close and wait
-	i.CloseAndWait()
+	i.closeAndWait()
 	if len(i.peers) != 0 {
 		t.Fatal("Not all peers closed")
 	}

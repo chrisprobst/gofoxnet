@@ -3,7 +3,9 @@ package gofoxnet
 import (
 	"bytes"
 	"encoding/json"
+	"net"
 	"testing"
+	"time"
 )
 
 func TestInserter(t *testing.T) {
@@ -53,4 +55,41 @@ func TestInserter(t *testing.T) {
 	if len(i.peers) != 0 {
 		t.Fatal("Not all peers closed")
 	}
+}
+
+func TestReceiver(t *testing.T) {
+	i := newInserter()
+
+	// Create pipes for io
+	l1, r1 := net.Pipe()
+	l2, r2 := net.Pipe()
+	l3, r3 := net.Pipe()
+
+	// Create receivers
+	rcv1 := newReceiver(r1, newDatabase(), newForwarder())
+	rcv2 := newReceiver(r2, newDatabase(), newForwarder())
+	rcv3 := newReceiver(r3, newDatabase(), newForwarder())
+
+	// Add all peers
+	i.addPeer(l1)
+	i.addPeer(l2)
+	i.addPeer(l3)
+
+	// The buffer for testing
+	buffer := []byte("helloworldworks")
+
+	// Do the insertion
+	i.insert(buffer)
+
+	// Make sure each goroutine has read
+	time.Sleep(time.Millisecond * 100)
+
+	i.closeAndWait()
+	if len(i.peers) != 0 {
+		t.Fatal("Not all peers closed")
+	}
+
+	rcv1.close()
+	rcv2.close()
+	rcv3.close()
 }

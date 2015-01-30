@@ -327,3 +327,42 @@ func (i *inserter) closeAndWait() error {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+
+type receiver struct {
+	rwc       io.ReadWriteCloser
+	database  *database
+	forwarder *forwarder
+}
+
+func newReceiver(rwc io.ReadWriteCloser, database *database, forwarder *forwarder) *receiver {
+	r := &receiver{rwc, database, forwarder}
+	go r.processInput()
+	return r
+}
+
+func (r *receiver) processInput() {
+	defer r.close()
+
+	// Setup a new decoder
+	decoder := json.NewDecoder(r.rwc)
+
+	for {
+		// Try to decode insertion packet
+		var ip insertionPacket
+		if err := decoder.Decode(&ip); err != nil {
+			if err != io.EOF {
+				log.Println(err)
+			}
+			break
+		}
+
+		// Insert meta data and chunk into database
+		r.database.addMetaData(metadata{ip.Hash, ip.SplitHashes})
+		r.database.addChunk(chunk{ip.Hash, ip.Buffer, ip.BufferIndex})
+		r.forwarder.forward(forwardingPacket{ip.Hash, ip.Buffer, ip.BufferIndex})
+	}
+}
+
+func (r *receiver) close() error {
+	return r.rwc.Close()
+}

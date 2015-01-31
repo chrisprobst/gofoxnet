@@ -2,8 +2,9 @@ package gofoxnet
 
 import (
 	"bytes"
-	"encoding/json"
 	"testing"
+
+	"gopkg.in/vmihailenco/msgpack.v2"
 )
 
 func TestForwarder(t *testing.T) {
@@ -23,15 +24,15 @@ func TestForwarder(t *testing.T) {
 
 	// Recreate buffer
 	var resultPacket1 forwardingPacket
-	decoder := json.NewDecoder(peers[0].buffer)
+	decoder := msgpack.NewDecoder(peers[0].buffer)
 	decoder.Decode(&resultPacket1)
 
 	var resultPacket2 forwardingPacket
-	decoder = json.NewDecoder(peers[1].buffer)
+	decoder = msgpack.NewDecoder(peers[1].buffer)
 	decoder.Decode(&resultPacket2)
 
 	var resultPacket3 forwardingPacket
-	decoder = json.NewDecoder(peers[2].buffer)
+	decoder = msgpack.NewDecoder(peers[2].buffer)
 	decoder.Decode(&resultPacket3)
 
 	// Compare buffers
@@ -55,17 +56,17 @@ func TestCollector(t *testing.T) {
 
 	// Fake packets and readers
 	data := []byte("helloworldworks")
-	h := hash(data)
+	h := Hash(data)
 	f1 := forwardingPacket{h, []byte("hello"), 0}
-	b, _ := json.Marshal(f1)
+	b, _ := msgpack.Marshal(f1)
 	r1 := bytes.NewReader(b)
 
 	f2 := forwardingPacket{h, []byte("world"), 1}
-	b, _ = json.Marshal(f2)
+	b, _ = msgpack.Marshal(f2)
 	r2 := bytes.NewReader(b)
 
 	f3 := forwardingPacket{h, []byte("works"), 2}
-	b, _ = json.Marshal(f3)
+	b, _ = msgpack.Marshal(f3)
 	r3 := bytes.NewReader(b)
 
 	// Register peers
@@ -79,9 +80,9 @@ func TestCollector(t *testing.T) {
 	d.addMetaData(metadata{
 		h,
 		[]string{
-			hash([]byte("hello")),
-			hash([]byte("world")),
-			hash([]byte("works")),
+			Hash([]byte("hello")),
+			Hash([]byte("world")),
+			Hash([]byte("works")),
 		},
 	})
 

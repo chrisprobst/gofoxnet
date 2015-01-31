@@ -2,15 +2,16 @@ package gofoxnet
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"log"
+
+	"gopkg.in/vmihailenco/msgpack.v2"
 )
 
 type forwardingPacket struct {
-	Hash        string `json:"hash"`
-	Buffer      []byte `json:"buffer"`
-	BufferIndex int    `json:"bufferIndex"`
+	Hash        string
+	Buffer      []byte
+	BufferIndex int
 }
 
 func (p *forwardingPacket) compatible(o *forwardingPacket) bool {
@@ -63,7 +64,7 @@ func newForwardingPeer(rwc io.ReadWriteCloser, id forwardingPeerId, forwarder *f
 
 func (p *forwardingPeer) processOutput() {
 	// Setup a new encoder
-	encoder := json.NewEncoder(p)
+	encoder := msgpack.NewEncoder(p)
 
 	// Receive new packets to write
 	for packet := range p.forwardingChan {
@@ -142,9 +143,9 @@ func (f *forwarder) addResult(result forwardingResult) {
 	}
 }
 
-func (f *forwarder) addPeer(wrc io.ReadWriteCloser) {
+func (f *forwarder) addPeer(rwc io.ReadWriteCloser) {
 	select {
-	case f.addPeerChan <- wrc:
+	case f.addPeerChan <- rwc:
 	case <-f.done:
 		break
 	}
@@ -280,7 +281,7 @@ func (p *collectingPeer) processInput() {
 	defer p.collector.kill(p.id)
 
 	// Setup a new decoder
-	decoder := json.NewDecoder(p)
+	decoder := msgpack.NewDecoder(p)
 
 	for {
 		// Try to decode forwarding packet
@@ -354,9 +355,9 @@ func (c *collector) createPeer(rwc io.ReadWriteCloser) {
 	c.nextPeerId++
 }
 
-func (c *collector) addPeer(wrc io.ReadWriteCloser) {
+func (c *collector) addPeer(rwc io.ReadWriteCloser) {
 	select {
-	case c.addPeerChan <- wrc:
+	case c.addPeerChan <- rwc:
 	case <-c.done:
 		break
 	}

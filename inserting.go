@@ -2,16 +2,17 @@ package gofoxnet
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"log"
+
+	"gopkg.in/vmihailenco/msgpack.v2"
 )
 
 type insertionPacket struct {
-	Hash        string   `json:"hash"`
-	SplitHashes []string `json:"splitHashes"`
-	Buffer      []byte   `json:"buffer"`
-	BufferIndex int      `json:"bufferIndex"`
+	Hash        string
+	SplitHashes []string
+	Buffer      []byte
+	BufferIndex int
 }
 
 func (p *insertionPacket) compatible(o *insertionPacket) bool {
@@ -91,7 +92,7 @@ func (p *insertionPeer) processInput() {
 	defer p.inserter.kill(p.id)
 
 	// Setup a new decoder
-	decoder := json.NewDecoder(p)
+	decoder := msgpack.NewDecoder(p)
 
 	for {
 		// Try to decode meta info
@@ -110,7 +111,7 @@ func (p *insertionPeer) processInput() {
 
 func (p *insertionPeer) processOutput() {
 	// Setup a new encoder
-	encoder := json.NewEncoder(p)
+	encoder := msgpack.NewEncoder(p)
 
 	// Receive new packets to write
 	for packet := range p.insertionChan {
@@ -201,9 +202,9 @@ func (i *inserter) addResult(result insertionResult) {
 	}
 }
 
-func (i *inserter) addPeer(wrc io.ReadWriteCloser) {
+func (i *inserter) addPeer(rwc io.ReadWriteCloser) {
 	select {
-	case i.addPeerChan <- wrc:
+	case i.addPeerChan <- rwc:
 	case <-i.done:
 		break
 	}
@@ -224,8 +225,8 @@ func (i *inserter) processInsert(ins insertion) {
 	// Collect variables necessary for inserting
 	buffer := ins.buffer
 	count := len(i.peers)
-	hash := hash(buffer)
-	splitHashes, splitBuffers := splitAndHash(buffer, count)
+	hash := Hash(buffer)
+	splitHashes, splitBuffers := SplitAndHash(buffer, count)
 	var notInserted []int
 
 	bufferIndex := 0
@@ -344,9 +345,10 @@ func (r *receiver) processInput() {
 	defer r.close()
 
 	// Setup a new decoder
-	decoder := json.NewDecoder(r.rwc)
+	decoder := msgpack.NewDecoder(r.rwc)
 
 	for {
+
 		// Try to decode insertion packet
 		var ip insertionPacket
 		if err := decoder.Decode(&ip); err != nil {

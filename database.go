@@ -63,7 +63,7 @@ func (d *dataset) merge() mergeResult {
 		}
 
 		// Verify the split hash
-		if h != hash(c) {
+		if h != Hash(c) {
 			return mergeResult{nil, errors.New(fmt.Sprint("Chunk", i, "corrupted"))}
 		}
 
@@ -72,7 +72,7 @@ func (d *dataset) merge() mergeResult {
 	}
 
 	// Verify hash
-	if d.hash != hash(m) {
+	if d.hash != Hash(m) {
 		return mergeResult{nil, errors.New(fmt.Sprint("All chunks corrupted"))}
 	}
 

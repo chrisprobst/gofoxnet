@@ -5,12 +5,12 @@ import (
 	"encoding/hex"
 )
 
-func hash(buffer []byte) string {
+func Hash(buffer []byte) string {
 	h := sha512.Sum512(buffer)
 	return hex.EncodeToString(h[:])
 }
 
-func splitAndHash(buffer []byte, count int) (splitHashes []string, splitBuffers [][]byte) {
+func SplitAndHash(buffer []byte, count int) (splitHashes []string, splitBuffers [][]byte) {
 	if count < 1 || count > len(buffer) {
 		panic("Count out of range")
 	}
@@ -22,7 +22,7 @@ func splitAndHash(buffer []byte, count int) (splitHashes []string, splitBuffers 
 	for i := 0; i < count; i++ {
 		b := buffer[:s]
 		splitBuffers[i] = b
-		splitHashes[i] = hash(b)
+		splitHashes[i] = Hash(b)
 		buffer = buffer[s:]
 	}
 

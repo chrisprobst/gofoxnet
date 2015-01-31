@@ -2,15 +2,31 @@ package gofoxnet
 
 import "io"
 
-type distributor struct {
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+type Distributor struct {
 	database  *database
 	collector *collector
 	forwarder *forwarder
 	receiver  *receiver
 }
 
-func newDistributor(rwc io.ReadWriteCloser) *distributor {
+func NewDistributor(rwc io.ReadWriteCloser) *Distributor {
 	db := newDatabase()
 	fw := newForwarder()
-	return &distributor{db, newCollector(db), fw, newReceiver(rwc, db, fw)}
+	return &Distributor{db, newCollector(db), fw, newReceiver(rwc, db, fw)}
+}
+
+func (d *Distributor) AddCollectorPeer(rwc io.ReadWriteCloser) {
+	d.collector.addPeer(rwc)
+}
+
+func (d *Distributor) AddForwardingPeer(rwc io.ReadWriteCloser) {
+	d.forwarder.addPeer(rwc)
+}
+
+func (d *Distributor) Lookup(hash string) ([]byte, error) {
+	return d.database.lookup(hash)
 }

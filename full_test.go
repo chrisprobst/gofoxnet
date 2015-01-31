@@ -7,7 +7,7 @@ import (
 )
 
 func TestFull(t *testing.T) {
-	i := newInserter()
+	p := NewPublisher()
 
 	// Create pipes for distributors
 	id1, di1 := net.Pipe()
@@ -15,15 +15,15 @@ func TestFull(t *testing.T) {
 	id3, di3 := net.Pipe()
 
 	// Add inserter peers
-	i.addPeer(id1)
-	i.addPeer(id2)
-	i.addPeer(id3)
+	p.AddPeer(id1)
+	p.AddPeer(id2)
+	p.AddPeer(id3)
 
 	// Create distributors
-	dists := []*distributor{
-		newDistributor(di1),
-		newDistributor(di2),
-		newDistributor(di3),
+	dists := []*Distributor{
+		NewDistributor(di1),
+		NewDistributor(di2),
+		NewDistributor(di3),
 	}
 
 	// Interconnect all peers
@@ -31,22 +31,22 @@ func TestFull(t *testing.T) {
 		for _, to := range dists {
 			if from != to {
 				a, b := net.Pipe()
-				from.collector.addPeer(a)
-				to.forwarder.addPeer(b)
+				from.AddCollectorPeer(a)
+				to.AddForwardingPeer(b)
 			}
 		}
 	}
 
 	// The buffer for testing
 	buffer := []byte("helloworldworks")
-	h := hash(buffer)
+	h := Hash(buffer)
 
 	// Do the insertion
-	i.insert(buffer)
+	p.Publish(buffer)
 
 	// Lookup the buffer on each peer
 	for i, d := range dists {
-		b, err := d.database.lookup(h)
+		b, err := d.Lookup(h)
 		if err != nil {
 			t.Fatal("Lookup of peer", i, "failed, Reason:", err)
 		}

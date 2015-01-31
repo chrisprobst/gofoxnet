@@ -8,16 +8,16 @@ import (
 
 func TestDatabase(t *testing.T) {
 	d := newDatabase()
-	h := hash([]byte("helloworldworks"))
+	h := Hash([]byte("helloworldworks"))
 	c1 := chunk{h, []byte("hello"), 0}
 	c2 := chunk{h, []byte("world"), 1}
 	c3 := chunk{h, []byte("works"), 2}
 	md := metadata{
 		h,
 		[]string{
-			hash([]byte("hello")),
-			hash([]byte("world")),
-			hash([]byte("works")),
+			Hash([]byte("hello")),
+			Hash([]byte("world")),
+			Hash([]byte("works")),
 		},
 	}
 

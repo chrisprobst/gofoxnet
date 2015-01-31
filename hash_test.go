@@ -4,18 +4,18 @@ import "testing"
 
 func TestHash(t *testing.T) {
 	b := []byte("HelloHelloHelloHelloHelloHello")
-	h := hash(b)
-	hs, bs := splitAndHash(b, 6)
+	h := Hash(b)
+	hs, bs := SplitAndHash(b, 6)
 
 	b = b[:0]
 	for i := 0; i < 6; i++ {
-		if hash(bs[i]) != hs[i] {
+		if Hash(bs[i]) != hs[i] {
 			t.Fatal("Wrong hashes")
 		}
 		b = append(b, bs[i]...)
 	}
 
-	if hash(b) != h {
+	if Hash(b) != h {
 		t.Fatal("Wrong hash")
 	}
 }

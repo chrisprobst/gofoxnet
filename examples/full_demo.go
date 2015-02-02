@@ -6,7 +6,6 @@ import (
 	"net"
 
 	"github.com/chrisprobst/gofoxnet"
-	"github.com/chrisprobst/token"
 )
 
 const (
@@ -17,7 +16,7 @@ const (
 
 func main() {
 
-	p := gofoxnet.NewThrottledPublisher(token.NewBucket(1*KiloByte, 32*Byte))
+	p := gofoxnet.NewPublisher()
 
 	// Create pipes for distributors
 	id1, di1 := net.Pipe()
@@ -31,9 +30,9 @@ func main() {
 
 	// Create distributors
 	dists := []*gofoxnet.Distributor{
-		gofoxnet.NewThrottledDistributor(di1, token.NewBucket(1*KiloByte, 32*Byte)),
-		gofoxnet.NewThrottledDistributor(di2, token.NewBucket(1*KiloByte, 32*Byte)),
-		gofoxnet.NewThrottledDistributor(di3, token.NewBucket(1*KiloByte, 32*Byte)),
+		gofoxnet.NewDistributor(di1),
+		gofoxnet.NewDistributor(di2),
+		gofoxnet.NewDistributor(di3),
 	}
 
 	// Interconnect all peers

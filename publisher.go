@@ -11,30 +11,21 @@ import (
 //////////////////////////////////////////////////////////////////////////
 
 func NewPublisher() *Publisher {
-	return NewThrottledPublisher(nil)
-}
-
-func NewThrottledPublisher(bucket *token.Bucket) *Publisher {
-	return &Publisher{newInserter(), bucket}
+	return &Publisher{newInserter(), nil, nil}
 }
 
 type Publisher struct {
-	inserter *inserter
-	bucket   *token.Bucket
+	inserter         *inserter
+	uploadThrottle   *token.Bucket
+	downloadThrottle *token.Bucket
 }
 
 func (p *Publisher) Close() error {
 	err := p.inserter.closeAndWait()
-	if p.bucket != nil {
-		p.bucket.Done()
-	}
 	return err
 }
 
 func (p *Publisher) AddPeer(rwc io.ReadWriteCloser) {
-	if p.bucket != nil {
-		rwc = token.NewReadWriteCloser(p.bucket.View(), rwc)
-	}
 	p.inserter.addPeer(rwc)
 }
 

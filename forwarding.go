@@ -287,7 +287,7 @@ func (p *collectingPeer) processInput() {
 		// Try to decode forwarding packet
 		var fp forwardingPacket
 		if err := decoder.Decode(&fp); err != nil {
-			if err != io.EOF {
+			if err != io.EOF && err != io.ErrClosedPipe {
 				log.Println(err)
 			}
 			break

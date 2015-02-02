@@ -98,7 +98,7 @@ func (p *insertionPeer) processInput() {
 		// Try to decode meta info
 		var mi distributorMetaInfo
 		if err := decoder.Decode(&mi); err != nil {
-			if err != io.EOF {
+			if err != io.EOF && err != io.ErrClosedPipe {
 				log.Println(err)
 			}
 			break

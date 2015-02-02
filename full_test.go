@@ -55,4 +55,14 @@ func TestFull(t *testing.T) {
 			t.Fatal("Peer", i, "has unequal buffer content:", string(b), "!=", string(buffer))
 		}
 	}
+
+	if err := p.Close(); err != nil {
+		t.Fatal("Failed to close publisher:", err)
+	}
+
+	for i, d := range dists {
+		if err := d.Close(); err != nil {
+			t.Fatal("Failed to close distributor no. ", i, ":", err)
+		}
+	}
 }

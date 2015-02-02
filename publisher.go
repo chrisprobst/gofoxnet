@@ -1,24 +1,40 @@
 package gofoxnet
 
-import "io"
+import (
+	"io"
+
+	"github.com/chrisprobst/token"
+)
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
 func NewPublisher() *Publisher {
-	return &Publisher{newInserter()}
+	return NewThrottledPublisher(nil)
+}
+
+func NewThrottledPublisher(bucket *token.Bucket) *Publisher {
+	return &Publisher{newInserter(), bucket}
 }
 
 type Publisher struct {
 	inserter *inserter
+	bucket   *token.Bucket
 }
 
 func (p *Publisher) Close() error {
-	return p.inserter.closeAndWait()
+	err := p.inserter.closeAndWait()
+	if p.bucket != nil {
+		p.bucket.Done()
+	}
+	return err
 }
 
 func (p *Publisher) AddPeer(rwc io.ReadWriteCloser) {
+	if p.bucket != nil {
+		rwc = token.NewReadWriteCloser(p.bucket.View(), rwc)
+	}
 	p.inserter.addPeer(rwc)
 }
 

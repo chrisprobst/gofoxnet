@@ -17,17 +17,12 @@ const (
 
 func main() {
 
-	p := gofoxnet.NewPublisher()
+	p := gofoxnet.NewThrottledPublisher(token.NewBucket(1*KiloByte, 32*Byte))
 
 	// Create pipes for distributors
 	id1, di1 := net.Pipe()
 	id2, di2 := net.Pipe()
 	id3, di3 := net.Pipe()
-
-	b := token.NewBucket(1*KiloByte, 32*Byte)
-	di1 = token.NewReadConn(b.View(), di1)
-	di2 = token.NewReadConn(b.View(), di2)
-	di3 = token.NewReadConn(b.View(), di3)
 
 	// Add inserter peers
 	p.AddPeer(id1)
@@ -36,23 +31,16 @@ func main() {
 
 	// Create distributors
 	dists := []*gofoxnet.Distributor{
-		gofoxnet.NewDistributor(di1),
-		gofoxnet.NewDistributor(di2),
-		gofoxnet.NewDistributor(di3),
-	}
-	buckets := []*token.Bucket{
-		token.NewBucket(1*KiloByte, 32*Byte),
-		token.NewBucket(1*KiloByte, 32*Byte),
-		token.NewBucket(1*KiloByte, 32*Byte),
+		gofoxnet.NewThrottledDistributor(di1, token.NewBucket(1*KiloByte, 32*Byte)),
+		gofoxnet.NewThrottledDistributor(di2, token.NewBucket(1*KiloByte, 32*Byte)),
+		gofoxnet.NewThrottledDistributor(di3, token.NewBucket(1*KiloByte, 32*Byte)),
 	}
 
 	// Interconnect all peers
-	for i, from := range dists {
-		for j, to := range dists {
+	for _, from := range dists {
+		for _, to := range dists {
 			if from != to {
 				a, b := net.Pipe()
-				a = token.NewReadWriteConn(buckets[i].View(), a)
-				b = token.NewReadWriteConn(buckets[j].View(), b)
 				from.AddCollectorPeer(a)
 				to.AddForwardingPeer(b)
 			}
@@ -75,6 +63,16 @@ func main() {
 
 		if !bytes.Equal(b, buffer) {
 			log.Fatal("Peer", i, "has unequal buffer content:", string(b), "!=", string(buffer))
+		}
+	}
+
+	if err := p.Close(); err != nil {
+		log.Fatal("Failed to close publisher:", err)
+	}
+
+	for i, d := range dists {
+		if err := d.Close(); err != nil {
+			log.Fatal("Failed to close distributor no. ", i, ":", err)
 		}
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"io"
 
 	"github.com/augustoroman/multierror"
-	"github.com/chrisprobst/token"
 )
 
 //////////////////////////////////////////////////////////////////////////
@@ -12,26 +11,29 @@ import (
 //////////////////////////////////////////////////////////////////////////
 
 type Distributor struct {
-	database         *database
-	collector        *collector
-	forwarder        *forwarder
-	receiver         *receiver
-	uploadThrottle   *token.Bucket
-	downloadThrottle *token.Bucket
+	readWriteThrottle
+	database  *database
+	collector *collector
+	forwarder *forwarder
+	receiver  *receiver
 }
 
-func NewDistributor(rwc io.ReadWriteCloser) *Distributor {
-	db := newDatabase()
-	fw := newForwarder()
-	return &Distributor{db, newCollector(db), fw, newReceiver(rwc, db, fw), nil, nil}
+func NewDistributor(rwc io.ReadWriteCloser, throttleOptions ...ThrottleOption) *Distributor {
+	var d Distributor
+	d.readWriteThrottle.setup(throttleOptions...)
+	d.database = newDatabase()
+	d.forwarder = newForwarder()
+	d.collector = newCollector(d.database)
+	d.receiver = newReceiver(d.readWriteThrottle.throttle(rwc), d.database, d.forwarder)
+	return &d
 }
 
 func (d *Distributor) AddCollectorPeer(rwc io.ReadWriteCloser) {
-	d.collector.addPeer(rwc)
+	d.collector.addPeer(d.readWriteThrottle.throttle(rwc))
 }
 
 func (d *Distributor) AddForwardingPeer(rwc io.ReadWriteCloser) {
-	d.forwarder.addPeer(rwc)
+	d.forwarder.addPeer(d.readWriteThrottle.throttle(rwc))
 }
 
 func (d *Distributor) Lookup(hash string) ([]byte, error) {
@@ -44,5 +46,6 @@ func (d *Distributor) Close() error {
 	errors.Push(d.forwarder.closeAndWait())
 	errors.Push(d.collector.closeAndWait())
 	errors.Push(d.database.closeAndWait())
+	d.readWriteThrottle.done()
 	return errors.Error()
 }

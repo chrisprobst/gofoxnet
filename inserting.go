@@ -352,7 +352,7 @@ func (r *receiver) processInput() {
 		// Try to decode insertion packet
 		var ip insertionPacket
 		if err := decoder.Decode(&ip); err != nil {
-			if err != io.EOF {
+			if err != io.EOF && err != io.ErrClosedPipe {
 				log.Println(err)
 			}
 			break

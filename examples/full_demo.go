@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"log"
 	"net"
+	"time"
 
 	"github.com/chrisprobst/gofoxnet"
+	"github.com/chrisprobst/token"
 )
 
 const (
@@ -14,9 +16,15 @@ const (
 	MegaByte = 1024 * KiloByte
 )
 
-func main() {
+func throttles() []gofoxnet.ThrottleOption {
+	return []gofoxnet.ThrottleOption{
+		gofoxnet.ThrottleReading(token.NewBucket(1*KiloByte, 32*Byte)),
+		gofoxnet.ThrottleWriting(token.NewBucket(1*KiloByte, 32*Byte)),
+	}
+}
 
-	p := gofoxnet.NewPublisher()
+func main() {
+	p := gofoxnet.NewPublisher(throttles()...)
 
 	// Create pipes for distributors
 	id1, di1 := net.Pipe()
@@ -30,9 +38,9 @@ func main() {
 
 	// Create distributors
 	dists := []*gofoxnet.Distributor{
-		gofoxnet.NewDistributor(di1),
-		gofoxnet.NewDistributor(di2),
-		gofoxnet.NewDistributor(di3),
+		gofoxnet.NewDistributor(di1, throttles()...),
+		gofoxnet.NewDistributor(di2, throttles()...),
+		gofoxnet.NewDistributor(di3, throttles()...),
 	}
 
 	// Interconnect all peers
@@ -64,6 +72,8 @@ func main() {
 			log.Fatal("Peer", i, "has unequal buffer content:", string(b), "!=", string(buffer))
 		}
 	}
+
+	time.Sleep(time.Millisecond * 250)
 
 	if err := p.Close(); err != nil {
 		log.Fatal("Failed to close publisher:", err)

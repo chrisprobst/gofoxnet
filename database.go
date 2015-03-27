@@ -97,7 +97,7 @@ type database struct {
 	lookups  map[string][]lookup
 }
 
-// Try to merge the database and store the result
+// Try to merge the dataset and store the result
 func (d *database) mergeAndNotify(ds *dataset) {
 	// Not enough to merge
 	if !ds.ensureChunkCount() {

@@ -204,7 +204,8 @@ func (f *forwarder) serve() {
 	defer close(f.closed)
 
 	// Select for adding, killing and forwarding
-	for running := true; running; {
+loop:
+	for {
 		select {
 		case rwc := <-f.addPeerChan:
 			f.createPeer(rwc)
@@ -213,8 +214,7 @@ func (f *forwarder) serve() {
 		case forwarding := <-f.forwardingChan:
 			f.processForwarding(forwarding)
 		case <-f.done:
-			running = false
-			continue
+			break loop
 		}
 	}
 
@@ -383,7 +383,8 @@ func (c *collector) serve() {
 	defer close(c.closed)
 
 	// Select for adding, killing and collecting
-	for running := true; running; {
+loop:
+	for {
 		select {
 		case rwc := <-c.addPeerChan:
 			c.createPeer(rwc)
@@ -392,8 +393,7 @@ func (c *collector) serve() {
 		case fp := <-c.packetChan:
 			c.database.addChunk(chunk{fp.Hash, fp.Buffer, fp.BufferIndex})
 		case <-c.done:
-			running = false
-			continue
+			break loop
 		}
 	}
 

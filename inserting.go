@@ -277,7 +277,8 @@ func (i *inserter) serve() {
 	defer close(i.closed)
 
 	// Select for adding, killing and inserting
-	for running := true; running; {
+loop:
+	for {
 		select {
 		case rwc := <-i.addPeerChan:
 			i.createPeer(rwc)
@@ -288,8 +289,7 @@ func (i *inserter) serve() {
 		case insertion := <-i.insertionChan:
 			i.processInsert(insertion)
 		case <-i.done:
-			running = false
-			continue
+			break loop
 		}
 	}
 
